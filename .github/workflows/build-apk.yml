@@ -22,10 +22,80 @@ jobs:
           npx cap add android
           npx cap copy android
           npx cap sync android
+      - name: Bloqueador que NO rompe - usa server.url https://m.youtube.com
+        run: |
+          MAIN=android/app/src/main/java/com/versatilidad/youtube/MainActivity.java
+          cat > $MAIN << 'JAVA'
+          package com.versatilidad.youtube;
+          import android.os.Bundle;
+          import android.webkit.WebResourceRequest;
+          import android.webkit.WebResourceResponse;
+          import android.webkit.WebSettings;
+          import android.webkit.WebView;
+          import android.webkit.WebViewClient;
+          import com.getcapacitor.BridgeActivity;
+          public class MainActivity extends BridgeActivity {
+            @Override
+            protected void onCreate(Bundle savedInstanceState) {
+              super.onCreate(savedInstanceState);
+              WebView w = getBridge().getWebView();
+              WebSettings s = w.getSettings();
+              s.setUserAgentString("Mozilla/5.0 (Linux; Android 13; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36");
+              s.setDomStorageEnabled(true);
+              s.setJavaScriptEnabled(true);
+              s.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+              s.setMediaPlaybackRequiresUserGesture(false);
+              // Guardamos el cliente original que maneja el server.url
+              final WebViewClient original = w.getWebViewClient();
+              w.setWebViewClient(new WebViewClient(){
+                @Override
+                public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request){
+                  String urlStr = request.getUrl().toString().toLowerCase();
+                  // NO tocar nada de m.youtube.com ni localhost
+                  if(urlStr.contains("localhost") || urlStr.contains("capacitor") || urlStr.contains("m.youtube.com") || urlStr.contains("youtube.com")){
+                    // Solo bloquea los dominios de ads puros
+                    if(urlStr.contains("doubleclick.net") || urlStr.contains("googleadservices.com") || urlStr.contains("googlesyndication.com") || urlStr.contains("adservice.google") || urlStr.contains("/pagead/") || urlStr.contains("get_midroll_") || urlStr.contains("/api/stats/ads")){
+                      return new WebResourceResponse("text/plain","utf-8", new java.io.ByteArrayInputStream("".getBytes()));
+                    }
+                    // Deja pasar todo lo demas de youtube
+                    if(original != null){
+                      try{ return original.shouldInterceptRequest(view, request); }catch(Exception e){ return null; }
+                    }
+                    return null;
+                  }
+                  // Para otros hosts (ads externos) bloquea
+                  if(urlStr.contains("doubleclick.net") || urlStr.contains("googleadservices.com") || urlStr.contains("googlesyndication.com")){
+                    return new WebResourceResponse("text/plain","utf-8", new java.io.ByteArrayInputStream("".getBytes()));
+                  }
+                  if(original != null){
+                    try{ return original.shouldInterceptRequest(view, request); }catch(Exception e){ return null; }
+                  }
+                  return null;
+                }
+                @Override
+                public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request){
+                  if(original != null){
+                    try{ return original.shouldOverrideUrlLoading(view, request); }catch(Exception e){ return false; }
+                  }
+                  return false;
+                }
+                @Override
+                public void onPageFinished(WebView view, String url){
+                  if(original != null){
+                    try{ original.onPageFinished(view, url); }catch(Exception e){}
+                  }
+                  if(url != null && url.contains("youtube.com")){
+                    view.evaluateJavascript("(function(){var st=document.createElement('style');st.innerHTML='.ytp-ad-overlay-container,.ytp-ad-image-overlay{display:none!important}';document.documentElement.appendChild(st);function skip(){var ad=document.querySelector('.ad-showing');if(ad){var v=document.querySelector('video');if(v){v.muted=true;if(v.duration>0){v.currentTime=v.duration-0.1;}}var b=document.querySelector('.ytp-ad-skip-button,.ytp-ad-skip-button-modern,.ytp-skip-ad-button');if(b)b.click();}var sk=document.querySelector('.ytp-ad-skip-button,.ytp-ad-skip-button-modern');if(sk)sk.click();}setInterval(skip,400);})();", null);
+                  }
+                }
+              });
+            }
+          }
+          JAVA
       - run: chmod +x android/gradlew
       - working-directory: android
         run: ./gradlew assembleDebug --no-daemon --stacktrace
       - uses: actions/upload-artifact@v4
         with:
-          name: YouTube-Versatilidad-Musical-SIN-LOCALHOST
+          name: YouTube-Versatilidad-Musical-CON-BLOQUEADOR
           path: android/app/build/outputs/apk/debug/app-debug.apk
