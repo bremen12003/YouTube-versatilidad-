@@ -22,26 +22,40 @@ jobs:
           npx cap add android
           npx cap copy android
           npx cap sync android
-      - name: Fix User-Agent
+      - name: Navegador con AdBlock Nativo
         run: |
           MAIN=android/app/src/main/java/com/versatilidad/youtube/MainActivity.java
           cat > $MAIN << 'JAVA'
           package com.versatilidad.youtube;
           import android.os.Bundle;
-          import android.webkit.WebSettings;
-          import android.webkit.WebView;
+          import android.webkit.*;
           import com.getcapacitor.BridgeActivity;
           public class MainActivity extends BridgeActivity {
             @Override
             protected void onCreate(Bundle savedInstanceState) {
               super.onCreate(savedInstanceState);
-              WebView w = getBridge().getWebView();
-              WebSettings s = w.getSettings();
+              android.webkit.WebView w = getBridge().getWebView();
+              android.webkit.WebSettings s = w.getSettings();
               s.setUserAgentString("Mozilla/5.0 (Linux; Android 13; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36");
               s.setDomStorageEnabled(true);
               s.setJavaScriptEnabled(true);
               s.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
               s.setMediaPlaybackRequiresUserGesture(false);
+              w.setWebViewClient(new WebViewClient(){
+                @Override
+                public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request){
+                  String url = request.getUrl().toString().toLowerCase();
+                  if(url.contains("doubleclick.net") || url.contains("googleadservices.com") || url.contains("googlesyndication.com") || url.contains("adservice.google") || url.contains("youtube.com/api/stats/ads") || url.contains("youtube.com/pagead/") || url.contains("youtube.com/get_midroll_")){
+                    return new WebResourceResponse("text/plain","utf-8", new java.io.ByteArrayInputStream("".getBytes()));
+                  }
+                  return null;
+                }
+                @Override
+                public void onPageFinished(WebView view, String url){
+                  super.onPageFinished(view, url);
+                  view.evaluateJavascript("(function(){setInterval(function(){var ad=document.querySelector('.ad-showing');if(ad){var v=document.querySelector('video');if(v){v.currentTime=v.duration;}var b=document.querySelector('.ytp-ad-skip-button');if(b)b.click();}var s=document.querySelector('.ytp-ad-skip-button');if(s)s.click();},500);})();", null);
+                }
+              });
             }
           }
           JAVA
