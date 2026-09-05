@@ -20,93 +20,133 @@ header{background:#000;padding:10px;display:flex;align-items:center;gap:10px;bor
 #player{position:fixed;top:0;left:0;right:0;bottom:0;background:#000;z-index:100;display:none;flex-direction:column}
 #player .bar{padding:10px;background:#111;display:flex;justify-content:space-between;align-items:center}
 #player .bar button{background:#fff;color:#000;border:none;padding:6px 14px;border-radius:16px;font-weight:700}
-video{flex:1;width:100%;background:#000}
+video,iframe{flex:1;width:100%;border:none;background:#000}
 </style>
 </head>
 <body>
 <header>
 <div class="logo">YouTube</div>
 <div class="search">
-<input id="q" placeholder="Buscar">
+<input id="q" placeholder="Musica">
 <button onclick="search()">Aceptar</button>
 </div>
 </header>
-<div id="grid"><div class="loading">Escribe algo y dale Aceptar - Sin anuncios</div></div>
+<div id="grid"><div class="loading">Escribe y dale Aceptar - Sin anuncios</div></div>
 <div id="player">
 <div class="bar"><span id="ptitle"></span><button onclick="closePlayer()">✕ Cerrar</button></div>
-<video id="vid" controls autoplay playsinline></video>
+<video id="vid" controls autoplay playsinline style="display:none"></video>
+<iframe id="ytf" style="display:none" allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen></iframe>
 </div>
 <script>
-const APIS = [
+const PIPED = [
   'https://pipedapi.kavin.rocks',
   'https://pipedapi.syncpundit.io',
   'https://pipedapi.adminforge.de',
-  'https://api.piped.privacydev.net'
+  'https://api.piped.privacydev.net',
+  'https://pipedapi.leptos-software.eu.org',
+  'https://pipedapi.drgns.space'
+];
+const INVIDIOUS = [
+  'https://inv.tux.pizza/api/v1/search?q=',
+  'https://yewtu.be/api/v1/search?q=',
+  'https://invidious.privacydev.net/api/v1/search?q=',
+  'https://inv.vern.cc/api/v1/search?q=',
+  'https://vid.priv.au/api/v1/search?q='
 ];
 
 async function search(){
-  const q=document.getElementById('q').value.trim();
-  if(!q) return;
+  const q=document.getElementById('q').value.trim()||'Musica';
   const grid=document.getElementById('grid');
   grid.innerHTML='<div class=loading>Buscando '+q+'...</div>';
-  let data=null;
-  for(let base of APIS){
+  
+  // 1. intentar Piped
+  for(let base of PIPED){
     try{
       const r=await fetch(base+'/search?q='+encodeURIComponent(q));
-      if(r.ok){ data=await r.json(); if(data && (data.content || data.items)) break; }
+      if(!r.ok) continue;
+      const data=await r.json();
+      const items=data.content||data.items;
+      if(items && items.length>0){
+        showPiped(items); return;
+      }
     }catch(e){}
   }
-  if(!data){
-    grid.innerHTML='<div class=loading>Error, dale Aceptar de nuevo</div>';
-    return;
+  // 2. intentar Invidious si Piped fallo (es lo que te daba Error)
+  for(let url of INVIDIOUS){
+    try{
+      const r=await fetch(url+encodeURIComponent(q));
+      if(!r.ok) continue;
+      const items=await r.json();
+      if(items && items.length>0){
+        showInvidious(items); return;
+      }
+    }catch(e){}
   }
-  const items=data.content||data.items||[];
-  if(items.length===0){ grid.innerHTML='<div class=loading>Sin resultados</div>'; return; }
+  grid.innerHTML='<div class=loading>Error: APIs caidas ahora. Dale Aceptar de nuevo en 10 seg<br><br>Si no, usa YouTube normal mientras<br><button onclick="location.href=\'https://m.youtube.com/results?search_query='+encodeURIComponent(q)+'\'" style="background:#fff;color:#000;border:none;padding:10px 18px;border-radius:20px">Ir a YouTube normal</button></div>';
+}
+
+function showPiped(items){
+  const grid=document.getElementById('grid');
   grid.innerHTML='';
   items.slice(0,20).forEach(v=>{
-    const id = v.url ? v.url.split('v=')[1] || v.url.split('/').pop() : v.id;
+    const id = v.url ? v.url.split('v=')[1] || v.url.split('/').pop().split('&')[0] : v.id;
     if(!id) return;
     const card=document.createElement('div');
     card.className='card';
-    card.innerHTML=`<img src="${v.thumbnail||'https://i.ytimg.com/vi/'+id+'/mqdefault.jpg'}"><div><div class=t>${v.title||q}</div><div style="font-size:12px;color:#aaa">${v.uploaderName||''}</div></div>`;
-    card.onclick=()=>play(id, v.title||q);
+    card.innerHTML=`<img src="${v.thumbnail||'https://i.ytimg.com/vi/'+id+'/mqdefault.jpg'}"><div><div class=t>${v.title}</div><div style="font-size:12px;color:#aaa">${v.uploaderName||v.author||''}</div></div>`;
+    card.onclick=()=>play(id, v.title);
+    grid.appendChild(card);
+  });
+}
+function showInvidious(items){
+  const grid=document.getElementById('grid');
+  grid.innerHTML='';
+  items.slice(0,20).forEach(v=>{
+    const id=v.videoId;
+    if(!id) return;
+    const card=document.createElement('div');
+    card.className='card';
+    card.innerHTML=`<img src="https://i.ytimg.com/vi/${id}/mqdefault.jpg"><div><div class=t>${v.title}</div><div style="font-size:12px;color:#aaa">${v.author||''}</div></div>`;
+    card.onclick=()=>play(id, v.title);
     grid.appendChild(card);
   });
 }
 
 async function play(id, title){
-  document.getElementById('ptitle').innerText=title;
+  document.getElementById('ptitle').innerText=title||'';
   document.getElementById('player').style.display='flex';
   const video=document.getElementById('vid');
-  video.src='';
+  const iframe=document.getElementById('ytf');
+  video.style.display='none'; iframe.style.display='none';
+  video.src=''; iframe.src='';
   video.poster='https://i.ytimg.com/vi/'+id+'/hqdefault.jpg';
-  // buscar stream directo sin anuncios
-  for(let base of APIS){
+  
+  for(let base of PIPED){
     try{
       const r=await fetch(base+'/streams/'+id);
       if(!r.ok) continue;
       const j=await r.json();
-      const streams=j.videoStreams||j.audioStreams||[];
       let url=null;
       if(j.videoStreams){
-        const best = j.videoStreams.filter(s=>s.mimeType&&s.mimeType.includes('mp4')).sort((a,b)=>b.height-a.height)[0];
+        const best=j.videoStreams.filter(s=>s.mimeType&&s.mimeType.includes('mp4')&&s.height<=720).sort((a,b)=>b.height-a.height)[0] || j.videoStreams[0];
         if(best) url=best.url;
       }
       if(url){
+        video.style.display='block';
         video.src=url;
-        video.play();
-        return;
+        video.play(); return;
       }
     }catch(e){}
   }
-  // fallback a youtube-nocookie si falla Piped
-  document.getElementById('player').innerHTML='<iframe src="https://www.youtube-nocookie.com/embed/'+id+'?autoplay=1" style="flex:1;width:100%;border:none" allow="autoplay; fullscreen"></iframe>';
+  // fallback sin anuncios? youtube-nocookie si todo falla
+  iframe.style.display='block';
+  iframe.src='https://www.youtube-nocookie.com/embed/'+id+'?autoplay=1&rel=0&playsinline=1';
 }
 
 function closePlayer(){
   document.getElementById('player').style.display='none';
-  const v=document.getElementById('vid');
-  if(v){ v.pause(); v.src=''; }
+  document.getElementById('vid').pause(); document.getElementById('vid').src='';
+  document.getElementById('ytf').src='';
 }
 document.getElementById('q').addEventListener('keydown',e=>{if(e.key==='Enter') search();});
 </script>
