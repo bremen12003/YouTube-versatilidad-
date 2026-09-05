@@ -17,7 +17,7 @@ jobs:
         with:
           node-version: 22
 
-      - name: Configurar Java
+      - name: Configurar Java 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -26,12 +26,17 @@ jobs:
       - name: Instalar dependencias
         run: npm install --legacy-peer-deps
 
-      - name: Crear proyecto Android limpio
+      - name: Crear proyecto Android limpio con Java 17
         run: |
           rm -rf android
           npx cap add android
+          # Forzar todo a Java 17 para evitar error invalid source release: 21
+          sed -i 's/21/17/g' android/variables.gradle || true
+          sed -i 's/21/17/g' android/app/build.gradle || true
+          sed -i 's/21/17/g' android/build.gradle || true
           npx cap copy android
           npx cap sync android
+          cat android/variables.gradle
 
       - name: Compilar APK
         run: |
