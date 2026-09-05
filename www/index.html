@@ -7,12 +7,12 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#000;color:#fff;height:100vh;display:flex;flex-direction:column;font-family:Arial,sans-serif}
-header{background:#000;padding:12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #222}
-.logo{color:#ff0000;font-weight:900;font-size:20px}
+header{background:#000;padding:10px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #222}
+.logo{color:#f00;font-weight:900;font-size:20px}
 .search{flex:1;display:flex;gap:8px}
-.search input{flex:1;background:#222;border:none;border-radius:20px;padding:10px 14px;color:#fff;outline:none;font-size:14px}
-.search button{background:#fff;color:#000;border:none;padding:10px 18px;border-radius:20px;font-weight:700;cursor:pointer}
-iframe{flex:1;width:100%;border:none;background:#000}
+.search input{flex:1;background:#222;border:none;border-radius:20px;padding:10px 14px;color:#fff;outline:none}
+.search button{background:#fff;color:#000;border:none;padding:10px 18px;border-radius:20px;font-weight:700}
+iframe{flex:1;width:100%;border:none;background:#0f0f0f}
 </style>
 </head>
 <body>
@@ -23,14 +23,13 @@ iframe{flex:1;width:100%;border:none;background:#000}
 <button onclick="go()">Aceptar</button>
 </div>
 </header>
-<iframe id="yt" src="about:blank" allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+<iframe id="yt" src="https://yewtu.be/search?q=Novelas" allow="autoplay; fullscreen" allowfullscreen></iframe>
 <script>
 function go(){
   const q=document.getElementById('q').value.trim();
   if(!q) return;
-  // Usamos piped.video que NO bloquea iframe como youtube.com/embed?listType=search
-  // piped.video si permite ser iframado y no da ERR_BLOCKED_BY_RESPONSE
-  document.getElementById('yt').src='https://piped.video/search?q='+encodeURIComponent(q);
+  // yewtu.be (Invidious) SI funciona, no da 404 como piped.video y no da ERR_BLOCKED como youtube.com/embed?listType=search
+  document.getElementById('yt').src='https://yewtu.be/search?q='+encodeURIComponent(q);
 }
 document.getElementById('q').addEventListener('keydown',e=>{if(e.key==='Enter') go();});
 </script>
