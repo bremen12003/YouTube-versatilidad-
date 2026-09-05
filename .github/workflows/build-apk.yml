@@ -26,7 +26,7 @@ jobs:
       - name: Instalar dependencias
         run: npm install --legacy-peer-deps
 
-      - name: Agregar plataforma Android (solo si no existe)
+      - name: Agregar plataforma Android
         run: |
           if [ ! -d android ]; then
             npx cap add android
@@ -34,7 +34,7 @@ jobs:
           npx cap copy android
           npx cap sync android
 
-      - name: Fix WebView - User-Agent Chrome y sin bloqueos
+      - name: Fix WebView - Quita X-Frame-Options y 404
         run: |
           MAIN=android/app/src/main/java/com/versatilidad/youtube/MainActivity.java
           mkdir -p $(dirname $MAIN)
@@ -43,6 +43,14 @@ jobs:
           import android.os.Bundle;
           import android.webkit.WebSettings;
           import android.webkit.WebView;
+          import android.webkit.WebViewClient;
+          import android.webkit.WebResourceRequest;
+          import android.webkit.WebResourceResponse;
+          import java.util.Map;
+          import java.util.HashMap;
+          import java.io.InputStream;
+          import java.net.HttpURLConnection;
+          import java.net.URL;
           import com.getcapacitor.BridgeActivity;
           public class MainActivity extends BridgeActivity {
             @Override
@@ -57,10 +65,42 @@ jobs:
               s.setMediaPlaybackRequiresUserGesture(false);
               s.setAllowFileAccess(true);
               s.setAllowContentAccess(true);
+              s.setAllowFileAccessFromFileURLs(true);
+              s.setAllowUniversalAccessFromFileURLs(true);
+              w.setWebViewClient(new WebViewClient(){
+                @Override
+                public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request){
+                  try{
+                    String url = request.getUrl().toString();
+                    // Solo interceptar youtube para quitar X-Frame-Options que da ERR_BLOCKED_BY_RESPONSE
+                    if(url.contains("youtube.com") || url.contains("youtube-nocookie.com")){
+                      HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+                      conn.setRequestProperty("User-Agent","Mozilla/5.0 (Linux; Android 13; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36");
+                      for(Map.Entry<String,String> h : request.getRequestHeaders().entrySet()){
+                        if(!h.getKey().equalsIgnoreCase("X-Requested-With")) conn.setRequestProperty(h.getKey(), h.getValue());
+                      }
+                      conn.connect();
+                      String mime = conn.getContentType();
+                      if(mime==null) mime="text/html";
+                      if(mime.contains(";")) mime=mime.split(";")[0];
+                      InputStream is = conn.getInputStream();
+                      Map<String,String> headers = new HashMap<>();
+                      // quitar X-Frame-Options para que no de ERR_BLOCKED
+                      for(Map.Entry<String, java.util.List<String>> e : conn.getHeaderFields().entrySet()){
+                        if(e.getKey()==null) continue;
+                        String k=e.getKey().toLowerCase();
+                        if(k.equals("x-frame-options") || k.equals("content-security-policy")) continue;
+                        headers.put(e.getKey(), e.getValue().get(0));
+                      }
+                      return new WebResourceResponse(mime, "UTF-8", 200, "OK", headers, is);
+                    }
+                  }catch(Exception e){}
+                  return null;
+                }
+              });
             }
           }
           JAVA
-          echo "MainActivity parcheado"
 
       - name: Dar permisos a gradlew
         run: chmod +x android/gradlew
