@@ -22,7 +22,7 @@ jobs:
           npx cap add android
           npx cap copy android
           npx cap sync android
-      - name: Navegador con AdBlock Nativo
+      - name: Fix MainActivity - No romper localhost
         run: |
           MAIN=android/app/src/main/java/com/versatilidad/youtube/MainActivity.java
           cat > $MAIN << 'JAVA'
@@ -34,26 +34,44 @@ jobs:
             @Override
             protected void onCreate(Bundle savedInstanceState) {
               super.onCreate(savedInstanceState);
-              android.webkit.WebView w = getBridge().getWebView();
-              android.webkit.WebSettings s = w.getSettings();
+              WebView w = getBridge().getWebView();
+              WebSettings s = w.getSettings();
               s.setUserAgentString("Mozilla/5.0 (Linux; Android 13; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36");
               s.setDomStorageEnabled(true);
               s.setJavaScriptEnabled(true);
               s.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
               s.setMediaPlaybackRequiresUserGesture(false);
+
               w.setWebViewClient(new WebViewClient(){
                 @Override
                 public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request){
-                  String url = request.getUrl().toString().toLowerCase();
-                  if(url.contains("doubleclick.net") || url.contains("googleadservices.com") || url.contains("googlesyndication.com") || url.contains("adservice.google") || url.contains("youtube.com/api/stats/ads") || url.contains("youtube.com/pagead/") || url.contains("youtube.com/get_midroll_")){
+                  String urlStr = request.getUrl().toString();
+                  String host = request.getUrl().getHost();
+                  // NO tocar localhost / capacitor - si no, da ERR_CONNECTION_REFUSED
+                  if(host != null && (host.equals("localhost") || host.contains("capacitor") || urlStr.contains("localhost"))){
+                    return null;
+                  }
+                  String url = urlStr.toLowerCase();
+                  if(url.contains("doubleclick.net") || url.contains("googleadservices.com") || url.contains("googlesyndication.com") || url.contains("adservice.google") || url.contains("youtube.com/api/stats/ads") || url.contains("youtube.com/pagead/") || url.contains("youtube.com/get_midroll_") || url.contains("google.com/pagead")){
                     return new WebResourceResponse("text/plain","utf-8", new java.io.ByteArrayInputStream("".getBytes()));
                   }
                   return null;
                 }
                 @Override
+                public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request){
+                  // Dejar que Capacitor maneje localhost
+                  String host = request.getUrl().getHost();
+                  if(host != null && (host.equals("localhost") || host.contains("capacitor"))){
+                    return false;
+                  }
+                  return false;
+                }
+                @Override
                 public void onPageFinished(WebView view, String url){
                   super.onPageFinished(view, url);
-                  view.evaluateJavascript("(function(){setInterval(function(){var ad=document.querySelector('.ad-showing');if(ad){var v=document.querySelector('video');if(v){v.currentTime=v.duration;}var b=document.querySelector('.ytp-ad-skip-button');if(b)b.click();}var s=document.querySelector('.ytp-ad-skip-button');if(s)s.click();},500);})();", null);
+                  if(url.contains("youtube.com") || url.contains("localhost")){
+                    view.evaluateJavascript("(function(){var style=document.createElement('style');style.innerHTML='.ad-showing .ytp-ad-overlay-container, .ytp-ad-image-overlay{display:none!important}';document.head.appendChild(style);setInterval(function(){var ad=document.querySelector('.ad-showing');if(ad){var v=document.querySelector('video');if(v&&v.duration){v.currentTime=v.duration-0.1;}var btn=document.querySelector('.ytp-ad-skip-button, .ytp-ad-skip-button-modern');if(btn)btn.click();}var skip=document.querySelector('.ytp-ad-skip-button, .ytp-ad-skip-button-modern');if(skip)skip.click();},500);})();", null);
+                  }
                 }
               });
             }
@@ -64,5 +82,5 @@ jobs:
         run: ./gradlew assembleDebug --no-daemon --stacktrace
       - uses: actions/upload-artifact@v4
         with:
-          name: YouTube-Versatilidad-Musical-SIN-ADS
+          name: YouTube-Versatilidad-Musical-SIN-ADS-FIX-LOCALHOST
           path: android/app/build/outputs/apk/debug/app-debug.apk
