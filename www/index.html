@@ -23,14 +23,13 @@ iframe{flex:1;width:100%;border:none;background:#000}
 <button onclick="go()">Aceptar</button>
 </div>
 </header>
-<iframe id="yt" src="about:blank" allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+<iframe id="yt" src="https://m.youtube.com" allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen></iframe>
 <script>
 function go(){
   const q=document.getElementById('q').value.trim();
   if(!q) return;
-  // inv.tux.pizza no tiene Checking browser como yewtu.be y no da 404 como piped.video
-  // y permite iframe sin ERR_BLOCKED_BY_RESPONSE de youtube.com
-  document.getElementById('yt').src='https://inv.tux.pizza/search?q='+encodeURIComponent(q);
+  // Ahora con el fix de MainActivity ya no da ERR_BLOCKED_BY_RESPONSE, podemos usar m.youtube.com directo y nunca da 404 de Piped
+  document.getElementById('yt').src='https://m.youtube.com/results?search_query='+encodeURIComponent(q);
 }
 document.getElementById('q').addEventListener('keydown',e=>{if(e.key==='Enter') go();});
 </script>
