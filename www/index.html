@@ -12,7 +12,15 @@ header{background:#000;padding:10px;display:flex;align-items:center;gap:10px;bor
 .search{flex:1;display:flex;gap:8px}
 .search input{flex:1;background:#222;border:none;border-radius:20px;padding:10px 14px;color:#fff;outline:none}
 .search button{background:#fff;color:#000;border:none;padding:10px 18px;border-radius:20px;font-weight:700}
-iframe{flex:1;width:100%;border:none;background:#000}
+#grid{flex:1;overflow-y:auto;background:#0f0f0f;padding:8px}
+.card{display:flex;gap:10px;padding:10px;border-bottom:1px solid #222;cursor:pointer}
+.card img{width:160px;height:90px;border-radius:8px;background:#222;object-fit:cover}
+.card .t{font-size:14px;line-height:18px}
+.loading{padding:30px;text-align:center;color:#aaa}
+#player{position:fixed;top:0;left:0;right:0;bottom:0;background:#000;z-index:100;display:none;flex-direction:column}
+#player .bar{padding:10px;background:#111;display:flex;justify-content:space-between;align-items:center}
+#player .bar button{background:#fff;color:#000;border:none;padding:6px 14px;border-radius:16px;font-weight:700}
+#player iframe{flex:1;width:100%;border:none;background:#000}
 </style>
 </head>
 <body>
@@ -20,18 +28,60 @@ iframe{flex:1;width:100%;border:none;background:#000}
 <div class="logo">YouTube</div>
 <div class="search">
 <input id="q" placeholder="Buscar">
-<button onclick="go()">Aceptar</button>
+<button onclick="search()">Aceptar</button>
 </div>
 </header>
-<iframe id="yt" src="https://m.youtube.com" allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+<div id="grid"><div class="loading">Escribe y dale Aceptar</div></div>
+<div id="player">
+<div class="bar"><span id="ptitle"></span><button onclick="closePlayer()">✕</button></div>
+<iframe id="ytf" allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+</div>
 <script>
-function go(){
+// ESTE USA INSTANCIAS QUE NO DAN 404 - con User-Agent Chrome ya no da Checking browser
+const APIS=[
+  'https://inv.tux.pizza/api/v1/search?q=',
+  'https://invidious.privacydev.net/api/v1/search?q=',
+  'https://yewtu.be/api/v1/search?q='
+];
+
+async function search(){
   const q=document.getElementById('q').value.trim();
   if(!q) return;
-  // Ahora con el fix de MainActivity ya no da ERR_BLOCKED_BY_RESPONSE, podemos usar m.youtube.com directo y nunca da 404 de Piped
-  document.getElementById('yt').src='https://m.youtube.com/results?search_query='+encodeURIComponent(q);
+  const grid=document.getElementById('grid');
+  grid.innerHTML='<div class=loading>Buscando '+q+'...</div>';
+  let items=null;
+  for(let base of APIS){
+    try{
+      const r=await fetch(base+encodeURIComponent(q));
+      if(r.ok){
+        const j=await r.json();
+        if(j && j.length>0){items=j; break;}
+      }
+    }catch(e){}
+  }
+  if(!items){
+    grid.innerHTML='<div class=loading>Sin conexión, dale Aceptar de nuevo</div>';
+    return;
+  }
+  grid.innerHTML='';
+  items.slice(0,20).forEach(v=>{
+    const id=v.videoId;
+    if(!id) return;
+    const card=document.createElement('div');
+    card.className='card';
+    card.innerHTML=`<img src="https://i.ytimg.com/vi/${id}/mqdefault.jpg"><div><div class=t>${v.title||q}</div><div style="font-size:12px;color:#aaa">${v.author||''}</div></div>`;
+    card.onclick=()=>play(id,v.title);
+    grid.appendChild(card);
+  });
 }
-document.getElementById('q').addEventListener('keydown',e=>{if(e.key==='Enter') go();});
+
+function play(id,title){
+  document.getElementById('ptitle').innerText=title||'';
+  document.getElementById('player').style.display='flex';
+  document.getElementById('ytf').src='https://www.youtube-nocookie.com/embed/'+id+'?autoplay=1&rel=0&playsinline=1';
+}
+function closePlayer(){document.getElementById('player').style.display='none'; document.getElementById('ytf').src='';}
+document.getElementById('q').addEventListener('keydown',e=>{if(e.key==='Enter') search();});
 </script>
 </body>
 </html>
