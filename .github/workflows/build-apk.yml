@@ -26,11 +26,10 @@ jobs:
       - name: Instalar dependencias
         run: npm install --legacy-peer-deps
 
-      - name: Crear proyecto Android
+      - name: Crear proyecto Android limpio
         run: |
-          if [ ! -d "android" ]; then
-            npx cap add android
-          fi
+          rm -rf android
+          npx cap add android
           npx cap copy android
           npx cap sync android
 
