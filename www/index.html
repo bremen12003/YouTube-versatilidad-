@@ -3,223 +3,122 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>YouTube Versatilidad Musical - Cast Real</title>
+<title>YouTube</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#0f0f0f;color:#fff;font-family:Roboto,Arial,sans-serif;height:100vh;display:flex;flex-direction:column}
-header{background:#000;padding:10px 12px;border-bottom:1px solid #222;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:20}
-.logo{font-weight:900;font-size:16px;white-space:nowrap}
-.logo b{color:#ff0000}
-.search{flex:1;display:flex;background:#121212;border:1px solid #333;border-radius:20px;overflow:hidden}
-.search input{flex:1;background:transparent;border:none;color:#fff;padding:8px 12px;outline:none;font-size:14px}
-.search button{background:#333;border:none;color:#fff;padding:0 12px;cursor:pointer}
-#castBtn{width:40px;height:40px;display:flex;align-items:center;justify-content:center;background:#272727;border-radius:50%;cursor:pointer}
-google-cast-launcher{width:24px;height:24px;--disconnected-color:#fff;--connected-color:#ff0000}
-.chips{display:flex;gap:6px;padding:8px;overflow-x:auto;background:#000;flex-shrink:0}
-.chip{background:#272727;border:none;color:#fff;padding:6px 12px;border-radius:16px;font-size:13px;white-space:nowrap;cursor:pointer}
-#grid{flex:1;overflow-y:auto;background:#0f0f0f}
+header{background:#000;padding:16px 12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #222}
+.logo{color:#ff0000;font-weight:900;font-size:22px;white-space:nowrap}
+.search{flex:1;display:flex;align-items:center;gap:8px}
+.search input{flex:1;background:#121212;border:1px solid #333;border-radius:24px;padding:10px 16px;color:#fff;outline:none;font-size:15px}
+.search button{background:#272727;border:none;color:#fff;padding:10px 18px;border-radius:20px;font-size:14px;cursor:pointer}
+#cast{width:40px;height:40px;background:#272727;border-radius:50%;display:flex;align-items:center;justify-content:center}
+google-cast-launcher{width:24px;height:24px}
+#grid{flex:1;overflow-y:auto;background:#0f0f0f;padding-top:8px}
 .card{display:flex;gap:10px;padding:10px;border-bottom:1px solid #222;cursor:pointer}
-.card img{width:150px;height:84px;border-radius:8px;object-fit:cover;background:#222}
+.card img{width:160px;height:90px;border-radius:8px;background:#222;object-fit:cover}
 .card .t{font-size:14px;line-height:18px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .card .a{font-size:12px;color:#aaa;margin-top:4px}
-#player{position:fixed;top:0;left:0;right:0;bottom:0;background:#000;z-index:100;display:none;flex-direction:column}
-#player video{flex:1;width:100%;background:#000}
-#player .bar{background:#111;padding:10px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #222}
-#player .bar button{background:#fff;color:#000;border:none;padding:6px 14px;border-radius:16px;font-weight:700;cursor:pointer}
 .loading{padding:30px;text-align:center;color:#aaa}
-.cast-info{font-size:11px;color:#aaa;padding:4px 12px;background:#111;text-align:center}
+#player{position:fixed;top:0;left:0;right:0;bottom:0;background:#000;z-index:100;display:none;flex-direction:column}
+#player .bar{background:#111;padding:10px;display:flex;justify-content:space-between;align-items:center}
+#player .bar button{border:none;padding:7px 14px;border-radius:16px;font-weight:700;cursor:pointer}
+#player video{flex:1;width:100%;background:#000}
 </style>
 <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
 </head>
 <body>
 <header>
-<div class="logo"><b>YouTube</b> Versatilidad</div>
-<div class="search"><input id="q" value="Cumbia" placeholder="Buscar..."><button onclick="search()">🔍</button></div>
-<div id="castBtn"><google-cast-launcher id="castLauncher"></google-cast-launcher></div>
-</header>
-<div class="cast-info" id="castStatus">Cast listo: busca tu TV Sala con el botón de arriba</div>
-<div class="chips">
-<button class="chip" onclick="searchQ('Versatilidad Musical Galvez')">Todo</button>
-<button class="chip" onclick="searchQ('Jose Jose')">José José</button>
-<button class="chip" onclick="searchQ('Banda MS')">Banda</button>
-<button class="chip" onclick="searchQ('Cumbia')">Cumbia</button>
-<button class="chip" onclick="searchQ('Salsa Romantica')">Salsa</button>
+<div class="logo">YouTube</div>
+<div class="search">
+<input id="q" type="text" placeholder="Buscar...">
+<button onclick="search()">Aceptar</button>
 </div>
-<div id="grid"><div class="loading">Cargando...</div></div>
+<div id="cast"><google-cast-launcher></google-cast-launcher></div>
+</header>
+
+<div id="grid"><div class="loading">Escribe algo y dale Aceptar</div></div>
 
 <div id="player">
-<div class="bar"><span id="ptitle">Reproduciendo</span><div><button onclick="castCurrent()" style="background:#ff0000;color:#fff;margin-right:8px">📺 Cast a TV</button><button onclick="closePlayer()">✕ Cerrar</button></div></div>
+<div class="bar"><span id="ptitle"></span><div><button onclick="castCurrent()" style="background:#ff0000;color:#fff;margin-right:8px">📺 TV</button><button onclick="closePlayer()" style="background:#fff;color:#000">✕</button></div></div>
 <video id="video" controls autoplay playsinline></video>
 </div>
 
 <script>
-let currentVideoUrl = null;
-let currentTitle = '';
-let castSession = null;
+let currentVideoUrl=null, currentTitle='';
+const grid=document.getElementById('grid'), qInput=document.getElementById('q'), videoEl=document.getElementById('video');
 
-const grid=document.getElementById('grid');
-const qInput=document.getElementById('q');
-const videoEl=document.getElementById('video');
-
-// === CAST SDK REAL ===
-window['__onGCastApiAvailable'] = function(isAvailable){
-  if(isAvailable){ initCast(); }
-};
-
-function initCast(){
-  const context = cast.framework.CastContext.getInstance();
-  context.setOptions({
-    autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED,
-    receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID
-  });
-  context.addEventListener(cast.framework.CastContextEventType.SESSION_STATE_CHANGED, e=>{
-    if(e.sessionState===cast.framework.SessionState.SESSION_STARTED || e.sessionState===cast.framework.SessionState.SESSION_RESUMED){
-      castSession = context.getCurrentSession();
-      document.getElementById('castStatus').innerText='Conectado a TV - listo para transmitir';
-      if(currentVideoUrl) castCurrent();
-    }
-    if(e.sessionState===cast.framework.SessionState.SESSION_ENDED){
-      castSession=null;
-      document.getElementById('castStatus').innerText='Cast desconectado';
-    }
-  });
-}
+window['__onGCastApiAvailable']=isAvailable=>{if(isAvailable){const ctx=cast.framework.CastContext.getInstance(); ctx.setOptions({receiverApplicationId:chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID});}};
 
 function castCurrent(){
-  if(!currentVideoUrl){
-    alert('Primero reproduce un video');
-    return;
-  }
-  const context = cast.framework.CastContext.getInstance();
-  const session = context.getCurrentSession();
-  if(!session){
-    context.requestSession().then(()=>{ doCast(); }).catch(e=>{ alert('No se encontró TV Sala, verifica que TV y cel estén en mismo WiFi'); });
-  } else {
-    doCast();
-  }
+  if(!currentVideoUrl){alert('Reproduce un video primero');return;}
+  const ctx=cast.framework.CastContext.getInstance();
+  const sess=ctx.getCurrentSession();
+  if(!sess){ctx.requestSession().then(()=>doCast()).catch(()=>alert('No se encontró TV, mismo WiFi?')); return;}
+  doCast();
 }
-
 function doCast(){
-  const context = cast.framework.CastContext.getInstance();
-  const session = context.getCurrentSession();
-  if(!session) return;
-  const mediaInfo = new chrome.cast.media.MediaInfo(currentVideoUrl, 'video/mp4');
-  mediaInfo.metadata = new chrome.cast.media.GenericMediaMetadata();
-  mediaInfo.metadata.title = currentTitle;
-  const request = new chrome.cast.media.LoadRequest(mediaInfo);
-  session.loadMedia(request).then(()=>{ console.log('Casting a TV Sala'); document.getElementById('castStatus').innerText='Transmitiendo a TV Sala: '+currentTitle; }, e=>{ console.error(e); alert('Error Cast: '+e); });
+  const sess=cast.framework.CastContext.getInstance().getCurrentSession();
+  if(!sess) return;
+  const mi=new chrome.cast.media.MediaInfo(currentVideoUrl,'video/mp4');
+  mi.metadata=new chrome.cast.media.GenericMediaMetadata(); mi.metadata.title=currentTitle;
+  sess.loadMedia(new chrome.cast.media.LoadRequest(mi));
 }
-
-// === BUSQUEDA Y REPRODUCCION REAL ===
-async function searchQ(txt){ qInput.value=txt; search(); }
 
 async function search(){
-  const query=qInput.value||'Versatilidad Musical Galvez';
-  grid.innerHTML='<div class=loading>Buscando '+query+' en YouTube real...</div>';
-  const apis=[
-    'https://pipedapi.kavin.rocks/search?q=',
-    'https://api.piped.private.coffee/search?q=',
-    'https://pipedapi.drgns.space/search?q=',
-    'https://pipedapi.syncpundit.io/search?q='
+  const query=qInput.value.trim();
+  if(!query){grid.innerHTML='<div class=loading>Escribe algo para buscar</div>';return;}
+  grid.innerHTML='<div class=loading>Buscando '+query+'...</div>';
+  
+  const endpoints=['https://pipedapi.kavin.rocks/search?q=','https://api.piped.private.coffee/search?q='];
+  const proxies=[
+    q=>'https://api.allorigins.win/raw?url='+encodeURIComponent('https://pipedapi.kavin.rocks/search?q='+encodeURIComponent(q)),
+    q=>'https://corsproxy.io/?'+encodeURIComponent('https://pipedapi.kavin.rocks/search?q='+encodeURIComponent(q))
   ];
+  
   let items=null;
-  for(let base of apis){
-    try{
-      const r=await fetch(base+encodeURIComponent(query));
-      if(!r.ok) continue;
-      const j=await r.json();
-      const list = j.items || j.content || j;
-      if(list && list.length>0){ items=list; break; }
-    }catch(e){ continue; }
+  for(let base of endpoints){
+    try{const r=await fetch(base+encodeURIComponent(query)); if(r.ok){const j=await r.json(); const list=j.items||j.content; if(list&&list.length>0){items=list;break;}}}catch(e){}
   }
   if(!items){
-    grid.innerHTML='<div class=loading>No se pudo conectar al buscador.<br>Verifica internet.<br><br>El Cast SDK ya está cargado, prueba buscar de nuevo.</div>';
-    return;
+    for(let make of proxies){
+      try{const r=await fetch(make(query)); if(r.ok){let j=await r.json(); if(j.contents) j=JSON.parse(j.contents); const list=j.items||j.content||j; if(list&&list.length>0){items=list;break;}}}catch(e){}
+    }
   }
+  if(!items){grid.innerHTML='<div class=loading>No se pudo conectar, intenta de nuevo</div>';return;}
+  
   grid.innerHTML='';
   items.forEach(v=>{
-    let id = '';
-    if(v.url) id = v.url.split('v=')[1]?.split('&')[0] || v.url.replace('/watch?v=','').split('/')[0].split('?')[0];
-    else id = v.id || v.videoId || '';
-    if(!id || id.length<5) return;
-    const thumb = v.thumbnail || 'https://i.ytimg.com/vi/'+id+'/mqdefault.jpg';
-    const title = v.title || 'Video';
-    const author = v.uploaderName || v.author || '';
-    const card=document.createElement('div');
-    card.className='card';
-    card.innerHTML=`<img src="${thumb}" loading="lazy"><div><div class=t>${title}</div><div class=a>${author}</div></div>`;
-    card.onclick=()=>playVideo(id, title);
+    let id=''; if(v.url) id=v.url.split('v=')[1]?.split('&')[0]||v.url.replace('/watch?v=','').split('/')[0]; else id=v.id||'';
+    if(!id||id.length<5) return;
+    const thumb=v.thumbnail||'https://i.ytimg.com/vi/'+id+'/mqdefault.jpg';
+    const title=v.title||'Video'; const author=v.uploaderName||'';
+    const card=document.createElement('div'); card.className='card';
+    card.innerHTML=`<img src="${thumb}"><div><div class=t>${title}</div><div class=a>${author}</div></div>`;
+    card.onclick=()=>playVideo(id,title);
     grid.appendChild(card);
   });
 }
 
-async function playVideo(videoId, title){
-  currentTitle = title;
-  document.getElementById('ptitle').innerText=title;
+async function playVideo(id,title){
+  currentTitle=title; document.getElementById('ptitle').innerText=title;
   document.getElementById('player').style.display='flex';
   videoEl.src='';
-  grid.innerHTML='<div class=loading>Cargando video...</div>';
-  // Obtenemos stream directo de Piped que SI se puede castear
-  const streamApis=[
-    'https://pipedapi.kavin.rocks/streams/'+videoId,
-    'https://api.piped.private.coffee/streams/'+videoId,
-    'https://pipedapi.drgns.space/streams/'+videoId
-  ];
   let streamUrl=null;
-  for(let base of streamApis){
-    try{
-      const r=await fetch(base);
-      if(!r.ok) continue;
-      const j=await r.json();
-      if(j.videoStreams && j.videoStreams.length>0){
-        // Buscamos 720p o 360p compatible
-        const s = j.videoStreams.find(x=>x.quality==='720p' && x.mimeType.includes('mp4')) || j.videoStreams.find(x=>x.mimeType.includes('mp4')) || j.videoStreams[0];
-        if(s){ streamUrl=s.url; break; }
-      }
-      if(j.audioStreams && j.videoStreams){ /* fallback */ }
-    }catch(e){ continue; }
-  }
+  const bases=['https://pipedapi.kavin.rocks/streams/'+id,'https://api.piped.private.coffee/streams/'+id];
+  const prox=[i=>'https://api.allorigins.win/raw?url='+encodeURIComponent('https://pipedapi.kavin.rocks/streams/'+i)];
+  for(let b of bases){try{const r=await fetch(b); if(r.ok){const j=await r.json(); const s=j.videoStreams?.find(x=>x.mimeType.includes('mp4')); if(s){streamUrl=s.url;break;}}}catch(e){}}
+  if(!streamUrl){for(let m of prox){try{const r=await fetch(m(id)); if(r.ok){let j=await r.json(); if(j.contents) j=JSON.parse(j.contents); const s=j.videoStreams?.find(x=>x.mimeType.includes('mp4')); if(s){streamUrl=s.url;break;}}}catch(e){}}}
   if(!streamUrl){
-    // Fallback a YouTube embed si Piped falla - este no castéa pero al menos reproduce
-    videoEl.style.display='none';
-    let iframe=document.getElementById('ytiframe');
-    if(!iframe){
-      iframe=document.createElement('iframe');
-      iframe.id='ytiframe';
-      iframe.style.flex='1';
-      iframe.style.width='100%';
-      iframe.style.border='none';
-      iframe.allow='autoplay; fullscreen';
-      document.getElementById('player').appendChild(iframe);
-    }
-    iframe.style.display='block';
-    iframe.src='https://www.youtube-nocookie.com/embed/'+videoId+'?autoplay=1&rel=0';
-    currentVideoUrl=null;
-    return;
+    let iframe=document.getElementById('ytf'); if(!iframe){iframe=document.createElement('iframe'); iframe.id='ytf'; iframe.style.flex='1'; iframe.style.width='100%'; iframe.style.border='none'; iframe.allow='autoplay; fullscreen'; document.getElementById('player').appendChild(iframe);}
+    videoEl.style.display='none'; iframe.style.display='block'; iframe.src='https://www.youtube-nocookie.com/embed/'+id+'?autoplay=1'; currentVideoUrl=null; return;
   }
-  // Video propio con URL casteable
-  let iframe=document.getElementById('ytiframe');
-  if(iframe) iframe.style.display='none';
-  videoEl.style.display='block';
-  videoEl.src=streamUrl;
-  currentVideoUrl=streamUrl;
-  videoEl.play();
-  // Si ya hay sesion Cast activa, castear automaticamente
-  const ctx = cast.framework.CastContext.getInstance();
-  if(ctx && ctx.getCurrentSession()){ setTimeout(()=>castCurrent(), 1000); }
-  searchQ(qInput.value); // recargar grid detras
+  let iframe=document.getElementById('ytf'); if(iframe) iframe.style.display='none';
+  videoEl.style.display='block'; videoEl.src=streamUrl; currentVideoUrl=streamUrl; videoEl.play();
 }
 
-function closePlayer(){
-  document.getElementById('player').style.display='none';
-  videoEl.pause();
-  videoEl.src='';
-  const iframe=document.getElementById('ytiframe');
-  if(iframe) iframe.src='';
-}
-
-qInput.addEventListener('keydown',e=>{if(e.key==='Enter') search()});
-search();
+function closePlayer(){document.getElementById('player').style.display='none'; videoEl.pause(); videoEl.src=''; const f=document.getElementById('ytf'); if(f) f.src='';}
+qInput.addEventListener('keydown',e=>{if(e.key==='Enter') search();});
 </script>
 </body>
 </html>
