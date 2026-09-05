@@ -3,14 +3,7 @@
   "appName": "YouTube",
   "webDir": "www",
   "server": {
-    "androidScheme": "https",
-    "allowNavigation": [
-      "*.youtube.com",
-      "*.googlevideo.com",
-      "*.ytimg.com",
-      "*.google.com",
-      "*.gstatic.com"
-    ]
+    "androidScheme": "https"
   },
   "android": {
     "allowMixedContent": true
