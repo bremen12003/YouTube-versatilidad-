@@ -6,7 +6,7 @@
 <title>YouTube</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:#000;color:#fff;font-family:Arial,sans-serif;height:100vh;display:flex;flex-direction:column}
+body{background:#000;color:#fff;height:100vh;display:flex;flex-direction:column;font-family:Arial,sans-serif}
 header{background:#000;padding:10px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #222}
 .logo{color:#f00;font-weight:900;font-size:20px}
 .search{flex:1;display:flex;gap:8px}
@@ -31,68 +31,71 @@ header{background:#000;padding:10px;display:flex;align-items:center;gap:10px;bor
 <button onclick="search()">Aceptar</button>
 </div>
 </header>
-<div id="grid"><div class="loading">Escribe algo y dale Aceptar</div></div>
+<div id="grid"><div class="loading">Escribe y dale Aceptar</div></div>
 <div id="player">
 <div class="bar"><span id="ptitle"></span><button onclick="closePlayer()">✕</button></div>
 <iframe id="ytf" allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen></iframe>
 </div>
 <script>
 const grid=document.getElementById('grid');
+const INV_INSTANCES=[
+  'https://inv.tux.pizza',
+  'https://invidious.privacydev.net',
+  'https://yewtu.be',
+  'https://inv.nadeko.net'
+];
+
 async function search(){
   const q=document.getElementById('q').value.trim();
-  if(!q){grid.innerHTML='<div class=loading>Escribe algo</div>';return;}
+  if(!q) return;
   grid.innerHTML='<div class=loading>Buscando '+q+'...</div>';
   
-  // Usamos DuckDuckGo HTML que no tiene Cloudflare Checking browser ni 404 de piped
-  // Pasamos por allorigins para que WebView no bloquee CORS
-  const ddgUrl='https://duckduckgo.com/html/?q=site%3Ayoutube.com+'+encodeURIComponent(q);
-  const proxyUrl='https://api.allorigins.win/get?url='+encodeURIComponent(ddgUrl);
-  
-  try{
-    const r=await fetch(proxyUrl);
-    if(!r.ok) throw new Error('proxy fail');
-    const j=await r.json();
-    const html=j.contents||'';
-    // extraer IDs de youtube del HTML de DuckDuckGo
-    const regex=/youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})/g;
-    const ids=[];
-    let m;
-    while((m=regex.exec(html))!==null){
-      if(!ids.includes(m[1])) ids.push(m[1]);
-      if(ids.length>=12) break;
-    }
-    if(ids.length===0){
-      // fallback segundo intento con bing html que tambien no tiene checking
-      const bingUrl='https://cc.bingj.com/cache.aspx?d=456&m=0&w=1&u='+encodeURIComponent('https://www.youtube.com/results?search_query='+encodeURIComponent(q));
-      // si no hay IDs, mostramos mensaje simple sin error feo
-      grid.innerHTML='<div class=loading>No se encontraron videos, intenta otra palabra</div>';
-      return;
-    }
-    grid.innerHTML='';
-    ids.forEach(id=>{
-      const card=document.createElement('div');
-      card.className='card';
-      card.innerHTML=`<img src="https://i.ytimg.com/vi/${id}/mqdefault.jpg"><div><div class=t>${q} - ${id}</div></div>`;
-      card.onclick=()=>play(id,q);
-      grid.appendChild(card);
-    });
-    // mejorar titulos usando oembed para tener titulo real sin API
-    ids.forEach(async id=>{
-      try{
-        const oembed=await fetch('https://api.allorigins.win/get?url='+encodeURIComponent('https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v='+id+'&format=json')).then(r=>r.json()).then(j=>JSON.parse(j.contents));
-        const el=document.querySelector(`img[src*="${id}"]`)?.parentElement?.querySelector('.t');
-        if(el && oembed.title) el.textContent=oembed.title;
-      }catch(e){}
-    });
-  }catch(e){
-    grid.innerHTML='<div class=loading>Error de conexión, dale Aceptar de nuevo</div>';
+  // Intentamos invidious directo sin allorigins (ahora con User-Agent Chrome real, Cloudflare ya no bloquea)
+  let items=null;
+  for(let base of INV_INSTANCES){
+    try{
+      const r=await fetch(base+'/api/v1/search?q='+encodeURIComponent(q),{headers:{'Accept':'application/json'}});
+      if(r.ok){
+        const j=await r.json();
+        if(Array.isArray(j) && j.length>0){items=j; break;}
+      }
+    }catch(e){}
   }
+  
+  // fallback: si invidious falla, usa piped api directo con proxy
+  if(!items){
+    try{
+      const r=await fetch('https://api.allorigins.win/get?url='+encodeURIComponent('https://pipedapi.kavin.rocks/search?q='+encodeURIComponent(q)));
+      const j=await r.json();
+      const data=JSON.parse(j.contents);
+      items=data.items||data.content;
+    }catch(e){}
+  }
+
+  if(!items || items.length===0){
+    grid.innerHTML='<div class=loading>Sin resultados, intenta otra palabra</div>';
+    return;
+  }
+
+  grid.innerHTML='';
+  items.slice(0,20).forEach(v=>{
+    const id=v.videoId||v.id||(v.url||'').split('v=')[1];
+    if(!id || id.length<5) return;
+    const title=v.title||q;
+    const author=v.author||v.uploaderName||'';
+    const thumb=v.videoThumbnails?.[2]?.url||v.thumbnail||'https://i.ytimg.com/vi/'+id+'/mqdefault.jpg';
+    const card=document.createElement('div');
+    card.className='card';
+    card.innerHTML=`<img src="${thumb}"><div><div class=t>${title}</div><div style="font-size:12px;color:#aaa">${author}</div></div>`;
+    card.onclick=()=>play(id,title);
+    grid.appendChild(card);
+  });
 }
 
 function play(id,title){
   document.getElementById('ptitle').innerText=title;
   document.getElementById('player').style.display='flex';
-  document.getElementById('ytf').src='https://www.youtube-nocookie.com/embed/'+id+'?autoplay=1&rel=0&playsinline=1';
+  document.getElementById('ytf').src='https://www.youtube-nocookie.com/embed/'+id+'?autoplay=1&rel=0&playsinline=1&enablejsapi=1';
 }
 function closePlayer(){document.getElementById('player').style.display='none'; document.getElementById('ytf').src='';}
 document.getElementById('q').addEventListener('keydown',e=>{if(e.key==='Enter') search();});
