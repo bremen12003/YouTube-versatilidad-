@@ -1,0 +1,13 @@
+{
+  "appId": "com.versatilidad.youtube",
+  "appName": "YouTube",
+  "webDir": "www",
+  "server": {
+    "url": "https://m.youtube.com",
+    "androidScheme": "https",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}
