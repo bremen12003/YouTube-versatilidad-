@@ -26,12 +26,41 @@ jobs:
       - name: Instalar dependencias
         run: npm install --legacy-peer-deps
 
-      - name: Agregar plataforma Android limpia
+      - name: Agregar plataforma Android (solo si no existe)
         run: |
-          rm -rf android
-          npx cap add android
+          if [ ! -d android ]; then
+            npx cap add android
+          fi
           npx cap copy android
           npx cap sync android
+
+      - name: Fix WebView - User-Agent Chrome y sin bloqueos
+        run: |
+          MAIN=android/app/src/main/java/com/versatilidad/youtube/MainActivity.java
+          mkdir -p $(dirname $MAIN)
+          cat > $MAIN << 'JAVA'
+          package com.versatilidad.youtube;
+          import android.os.Bundle;
+          import android.webkit.WebSettings;
+          import android.webkit.WebView;
+          import com.getcapacitor.BridgeActivity;
+          public class MainActivity extends BridgeActivity {
+            @Override
+            protected void onCreate(Bundle savedInstanceState) {
+              super.onCreate(savedInstanceState);
+              WebView w = getBridge().getWebView();
+              WebSettings s = w.getSettings();
+              s.setUserAgentString("Mozilla/5.0 (Linux; Android 13; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36");
+              s.setDomStorageEnabled(true);
+              s.setJavaScriptEnabled(true);
+              s.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+              s.setMediaPlaybackRequiresUserGesture(false);
+              s.setAllowFileAccess(true);
+              s.setAllowContentAccess(true);
+            }
+          }
+          JAVA
+          echo "MainActivity parcheado"
 
       - name: Dar permisos a gradlew
         run: chmod +x android/gradlew
