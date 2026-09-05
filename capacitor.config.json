@@ -1,8 +1,12 @@
 {
   "appId": "com.versatilidad.youtube",
-  "appName": "YouTube",
+  "appName": "YouTube Versatilidad",
   "webDir": "www",
   "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https",
+    "allowNavigation": ["*.youtube.com", "*.googlevideo.com", "*.ytimg.com", "*.google.com", "youtube.com", "m.youtube.com", "www.youtube.com"]
+  },
   "android": {
     "allowMixedContent": true
   }
