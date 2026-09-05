@@ -8,5 +8,27 @@
 </head>
 <body>
 <iframe id="yt" src="https://m.youtube.com/" allow="fullscreen; autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+<script>
+// Bloqueador JS - salta anuncios dentro del iframe cuando se puede
+setInterval(function(){
+  try{
+    var iframe = document.getElementById('yt');
+    var doc = iframe.contentDocument || iframe.contentWindow.document;
+    if(!doc) return;
+    var ad = doc.querySelector('.ad-showing');
+    if(ad){
+      var v = doc.querySelector('video');
+      if(v && v.duration){ v.currentTime = v.duration - 0.1; v.muted = true; }
+      var btn = doc.querySelector('.ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button, .ytp-ad-skip-button-slot button');
+      if(btn) btn.click();
+    }
+    var skip = doc.querySelector('.ytp-ad-skip-button, .ytp-ad-skip-button-modern');
+    if(skip) skip.click();
+    // ocultar overlay
+    var overlays = doc.querySelectorAll('.ytp-ad-overlay-container, .ytp-ad-image-overlay');
+    overlays.forEach(function(o){ o.style.display='none'; });
+  }catch(e){}
+},500);
+</script>
 </body>
 </html>
