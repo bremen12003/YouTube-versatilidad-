@@ -6,119 +6,31 @@
 <title>YouTube</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:#0f0f0f;color:#fff;font-family:Roboto,Arial,sans-serif;height:100vh;display:flex;flex-direction:column}
-header{background:#000;padding:16px 12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #222}
-.logo{color:#ff0000;font-weight:900;font-size:22px;white-space:nowrap}
-.search{flex:1;display:flex;align-items:center;gap:8px}
-.search input{flex:1;background:#121212;border:1px solid #333;border-radius:24px;padding:10px 16px;color:#fff;outline:none;font-size:15px}
-.search button{background:#272727;border:none;color:#fff;padding:10px 18px;border-radius:20px;font-size:14px;cursor:pointer}
-#cast{width:40px;height:40px;background:#272727;border-radius:50%;display:flex;align-items:center;justify-content:center}
-google-cast-launcher{width:24px;height:24px}
-#grid{flex:1;overflow-y:auto;background:#0f0f0f;padding-top:8px}
-.card{display:flex;gap:10px;padding:10px;border-bottom:1px solid #222;cursor:pointer}
-.card img{width:160px;height:90px;border-radius:8px;background:#222;object-fit:cover}
-.card .t{font-size:14px;line-height:18px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.card .a{font-size:12px;color:#aaa;margin-top:4px}
-.loading{padding:30px;text-align:center;color:#aaa}
-#player{position:fixed;top:0;left:0;right:0;bottom:0;background:#000;z-index:100;display:none;flex-direction:column}
-#player .bar{background:#111;padding:10px;display:flex;justify-content:space-between;align-items:center}
-#player .bar button{border:none;padding:7px 14px;border-radius:16px;font-weight:700;cursor:pointer}
-#player video{flex:1;width:100%;background:#000}
+body{background:#000;color:#fff;font-family:Arial,sans-serif;height:100vh;display:flex;flex-direction:column}
+header{background:#000;padding:10px;display:flex;align-items:center;gap:10px}
+.logo{color:#ff0000;font-weight:900;font-size:20px}
+.search{flex:1;display:flex;gap:8px}
+.search input{flex:1;background:#222;border:none;border-radius:20px;padding:10px 14px;color:#fff;outline:none}
+.search button{background:#fff;color:#000;border:none;padding:10px 18px;border-radius:20px;font-weight:700}
+iframe{flex:1;width:100%;border:none;background:#000}
 </style>
-<script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
 </head>
 <body>
 <header>
 <div class="logo">YouTube</div>
 <div class="search">
-<input id="q" type="text" placeholder="Buscar...">
-<button onclick="search()">Aceptar</button>
+<input id="q" placeholder="Buscar">
+<button onclick="go()">Aceptar</button>
 </div>
-<div id="cast"><google-cast-launcher></google-cast-launcher></div>
 </header>
-
-<div id="grid"><div class="loading">Escribe algo y dale Aceptar</div></div>
-
-<div id="player">
-<div class="bar"><span id="ptitle"></span><div><button onclick="castCurrent()" style="background:#ff0000;color:#fff;margin-right:8px">📺 TV</button><button onclick="closePlayer()" style="background:#fff;color:#000">✕</button></div></div>
-<video id="video" controls autoplay playsinline></video>
-</div>
-
+<iframe id="yt" src="https://www.youtube-nocookie.com/embed?listType=search&list=Mana" allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen></iframe>
 <script>
-let currentVideoUrl=null, currentTitle='';
-const grid=document.getElementById('grid'), qInput=document.getElementById('q'), videoEl=document.getElementById('video');
-
-window['__onGCastApiAvailable']=isAvailable=>{if(isAvailable){const ctx=cast.framework.CastContext.getInstance(); ctx.setOptions({receiverApplicationId:chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID});}};
-
-function castCurrent(){
-  if(!currentVideoUrl){alert('Reproduce un video primero');return;}
-  const ctx=cast.framework.CastContext.getInstance();
-  const sess=ctx.getCurrentSession();
-  if(!sess){ctx.requestSession().then(()=>doCast()).catch(()=>alert('No se encontró TV, mismo WiFi?')); return;}
-  doCast();
+function go(){
+  const q=document.getElementById('q').value.trim();
+  if(!q) return;
+  document.getElementById('yt').src='https://www.youtube-nocookie.com/embed?listType=search&list='+encodeURIComponent(q)+'&autoplay=1';
 }
-function doCast(){
-  const sess=cast.framework.CastContext.getInstance().getCurrentSession();
-  if(!sess) return;
-  const mi=new chrome.cast.media.MediaInfo(currentVideoUrl,'video/mp4');
-  mi.metadata=new chrome.cast.media.GenericMediaMetadata(); mi.metadata.title=currentTitle;
-  sess.loadMedia(new chrome.cast.media.LoadRequest(mi));
-}
-
-async function search(){
-  const query=qInput.value.trim();
-  if(!query){grid.innerHTML='<div class=loading>Escribe algo para buscar</div>';return;}
-  grid.innerHTML='<div class=loading>Buscando '+query+'...</div>';
-  
-  const endpoints=['https://pipedapi.kavin.rocks/search?q=','https://api.piped.private.coffee/search?q='];
-  const proxies=[
-    q=>'https://api.allorigins.win/raw?url='+encodeURIComponent('https://pipedapi.kavin.rocks/search?q='+encodeURIComponent(q)),
-    q=>'https://corsproxy.io/?'+encodeURIComponent('https://pipedapi.kavin.rocks/search?q='+encodeURIComponent(q))
-  ];
-  
-  let items=null;
-  for(let base of endpoints){
-    try{const r=await fetch(base+encodeURIComponent(query)); if(r.ok){const j=await r.json(); const list=j.items||j.content; if(list&&list.length>0){items=list;break;}}}catch(e){}
-  }
-  if(!items){
-    for(let make of proxies){
-      try{const r=await fetch(make(query)); if(r.ok){let j=await r.json(); if(j.contents) j=JSON.parse(j.contents); const list=j.items||j.content||j; if(list&&list.length>0){items=list;break;}}}catch(e){}
-    }
-  }
-  if(!items){grid.innerHTML='<div class=loading>No se pudo conectar, intenta de nuevo</div>';return;}
-  
-  grid.innerHTML='';
-  items.forEach(v=>{
-    let id=''; if(v.url) id=v.url.split('v=')[1]?.split('&')[0]||v.url.replace('/watch?v=','').split('/')[0]; else id=v.id||'';
-    if(!id||id.length<5) return;
-    const thumb=v.thumbnail||'https://i.ytimg.com/vi/'+id+'/mqdefault.jpg';
-    const title=v.title||'Video'; const author=v.uploaderName||'';
-    const card=document.createElement('div'); card.className='card';
-    card.innerHTML=`<img src="${thumb}"><div><div class=t>${title}</div><div class=a>${author}</div></div>`;
-    card.onclick=()=>playVideo(id,title);
-    grid.appendChild(card);
-  });
-}
-
-async function playVideo(id,title){
-  currentTitle=title; document.getElementById('ptitle').innerText=title;
-  document.getElementById('player').style.display='flex';
-  videoEl.src='';
-  let streamUrl=null;
-  const bases=['https://pipedapi.kavin.rocks/streams/'+id,'https://api.piped.private.coffee/streams/'+id];
-  const prox=[i=>'https://api.allorigins.win/raw?url='+encodeURIComponent('https://pipedapi.kavin.rocks/streams/'+i)];
-  for(let b of bases){try{const r=await fetch(b); if(r.ok){const j=await r.json(); const s=j.videoStreams?.find(x=>x.mimeType.includes('mp4')); if(s){streamUrl=s.url;break;}}}catch(e){}}
-  if(!streamUrl){for(let m of prox){try{const r=await fetch(m(id)); if(r.ok){let j=await r.json(); if(j.contents) j=JSON.parse(j.contents); const s=j.videoStreams?.find(x=>x.mimeType.includes('mp4')); if(s){streamUrl=s.url;break;}}}catch(e){}}}
-  if(!streamUrl){
-    let iframe=document.getElementById('ytf'); if(!iframe){iframe=document.createElement('iframe'); iframe.id='ytf'; iframe.style.flex='1'; iframe.style.width='100%'; iframe.style.border='none'; iframe.allow='autoplay; fullscreen'; document.getElementById('player').appendChild(iframe);}
-    videoEl.style.display='none'; iframe.style.display='block'; iframe.src='https://www.youtube-nocookie.com/embed/'+id+'?autoplay=1'; currentVideoUrl=null; return;
-  }
-  let iframe=document.getElementById('ytf'); if(iframe) iframe.style.display='none';
-  videoEl.style.display='block'; videoEl.src=streamUrl; currentVideoUrl=streamUrl; videoEl.play();
-}
-
-function closePlayer(){document.getElementById('player').style.display='none'; videoEl.pause(); videoEl.src=''; const f=document.getElementById('ytf'); if(f) f.src='';}
-qInput.addEventListener('keydown',e=>{if(e.key==='Enter') search();});
+document.getElementById('q').addEventListener('keydown',e=>{if(e.key==='Enter') go();});
 </script>
 </body>
 </html>
