@@ -41,13 +41,11 @@ jobs:
               s.setJavaScriptEnabled(true);
               s.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
               s.setMediaPlaybackRequiresUserGesture(false);
-
               w.setWebViewClient(new WebViewClient(){
                 @Override
                 public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request){
                   String urlStr = request.getUrl().toString();
                   String host = request.getUrl().getHost();
-                  // NO tocar localhost / capacitor - si no, da ERR_CONNECTION_REFUSED
                   if(host != null && (host.equals("localhost") || host.contains("capacitor") || urlStr.contains("localhost"))){
                     return null;
                   }
@@ -59,18 +57,13 @@ jobs:
                 }
                 @Override
                 public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request){
-                  // Dejar que Capacitor maneje localhost
-                  String host = request.getUrl().getHost();
-                  if(host != null && (host.equals("localhost") || host.contains("capacitor"))){
-                    return false;
-                  }
                   return false;
                 }
                 @Override
                 public void onPageFinished(WebView view, String url){
                   super.onPageFinished(view, url);
                   if(url.contains("youtube.com") || url.contains("localhost")){
-                    view.evaluateJavascript("(function(){var style=document.createElement('style');style.innerHTML='.ad-showing .ytp-ad-overlay-container, .ytp-ad-image-overlay{display:none!important}';document.head.appendChild(style);setInterval(function(){var ad=document.querySelector('.ad-showing');if(ad){var v=document.querySelector('video');if(v&&v.duration){v.currentTime=v.duration-0.1;}var btn=document.querySelector('.ytp-ad-skip-button, .ytp-ad-skip-button-modern');if(btn)btn.click();}var skip=document.querySelector('.ytp-ad-skip-button, .ytp-ad-skip-button-modern');if(skip)skip.click();},500);})();", null);
+                    view.evaluateJavascript("(function(){var st=document.createElement('style');st.innerHTML='.ad-showing .ytp-ad-overlay-container, .ytp-ad-image-overlay{display:none!important}';document.head.appendChild(st);setInterval(function(){var ad=document.querySelector('.ad-showing');if(ad){var v=document.querySelector('video');if(v&&v.duration){v.currentTime=v.duration-0.1;}var b=document.querySelector('.ytp-ad-skip-button, .ytp-ad-skip-button-modern');if(b)b.click();}var sk=document.querySelector('.ytp-ad-skip-button, .ytp-ad-skip-button-modern');if(sk)sk.click();},500);})();", null);
                   }
                 }
               });
